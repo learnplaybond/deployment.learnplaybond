@@ -50,15 +50,29 @@ services:
       - .env
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DATABASE}?authSource=admin
+      - MONGO_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DATABASE}?authSource=admin
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      # Firebase Auth
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-}
+      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL:-}
+      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY:-}
+      # Payment
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-}
+      - RAZORPAY_SECRET=${RAZORPAY_SECRET:-}
+      # AI
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # Email
+      - EMAIL_USER=${EMAIL_USER:-}
+      - EMAIL_PASS=${EMAIL_PASS:-}
+      # Monitoring
+      - SENTRY_DSN=${SENTRY_DSN:-}
     depends_on:
       mongodb:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:6001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -68,7 +82,8 @@ services:
       - "traefik.http.routers.api.rule=Host(`api.${DOMAIN}`)"
       - "traefik.http.routers.api.entrypoints=websecure"
       - "traefik.http.routers.api.tls.certresolver=letsencrypt"
-      - "traefik.http.services.api.loadbalancer.server.port=3000"
+      - "traefik.http.services.api.loadbalancer.server.port=6001"
+      - "com.centurylinklabs.watchtower.enable=true"
     deploy:
       resources:
         limits:
@@ -146,6 +161,7 @@ services:
       - ENCRYPTION_KEY=${INFISICAL_ENCRYPTION_KEY}
       - AUTH_SECRET=${INFISICAL_AUTH_SECRET}
       - MONGO_URL=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/infisical?authSource=admin
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
     depends_on:
       mongodb:
         condition: service_healthy
@@ -190,6 +206,31 @@ services:
       - mongodb-backup:/backup
     depends_on:
       - mongodb
+    networks:
+      - internal
+
+  # ===========================================
+  # AUTOMATED UPDATES
+  # ===========================================
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    environment:
+      - WATCHTOWER_CLEANUP=true                    # Remove old images
+      - WATCHTOWER_INCLUDE_RESTARTING=true         # Update restarting containers
+      - WATCHTOWER_ROLLING_RESTART=true            # One at a time
+      - WATCHTOWER_POLL_INTERVAL=300               # Check every 5 minutes
+      - WATCHTOWER_LABEL_ENABLE=true               # Only update labeled containers
+      # - WATCHTOWER_NOTIFICATIONS=slack             # Slack notifications (disabled for local testing)
+      # - WATCHTOWER_NOTIFICATION_SLACK_HOOK_URL=${SLACK_WEBHOOK_URL}
+      # - WATCHTOWER_NOTIFICATION_SLACK_IDENTIFIER=learnplaybond-production
+      - WATCHTOWER_HTTP_API_UPDATE=true            # Enable HTTP API for instant updates
+      - WATCHTOWER_HTTP_API_TOKEN=${WATCHTOWER_TOKEN}  # Authentication token
+    ports:
+      - "8081:8080"                                # Internal API port (not exposed publicly)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - internal
 
