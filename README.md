@@ -86,6 +86,7 @@ curl https://api.learnplaybond.com/health
 | Redis | 6379 (internal) | - | Cache |
 | Infisical | 8080 (internal) | secrets.learnplaybond.com | Secrets management |
 | Backup | - | - | Automated MongoDB backups |
+| Watchtower | - | - | Automated container updates |
 
 ## DNS Configuration
 
@@ -96,19 +97,55 @@ Create these records in Cloudflare:
 | A | api | your-server-ip | ✅ Orange cloud |
 | A | secrets | your-server-ip | ✅ Orange cloud |
 
-## Deployment Commands
+## Automated Deployments
+
+Watchtower automatically updates the API container when new images are pushed to GitHub Container Registry.
+
+### How It Works
+
+1. **CI/CD pushes new image** → GitHub Actions builds and pushes to `ghcr.io/learnplaybond/api.learnplaybond:latest`
+2. **Watchtower detects update** → Checks for new images every 5 minutes
+3. **Automatic deployment** → Pulls new image, stops old container, starts new one
+4. **Slack notification** → Sends update status to your Slack channel
+5. **Cleanup** → Removes old unused images
+
+### Configuration
+
+- **Poll Interval**: 5 minutes (300 seconds)
+- **Update Strategy**: Rolling restart (zero downtime)
+- **Monitored Containers**: Only containers with `com.centurylinklabs.watchtower.enable=true` label
+- **Cleanup**: Automatically removes old images after update
+- **Notifications**: Slack alerts for updates and failures
+
+### Disable Automated Updates
+
+To update manually instead:
 
 ```bash
-# Update to latest version
+# Stop Watchtower
+docker-compose stop watchtower
+
+# Update manually
 docker-compose pull api
 docker-compose up -d api
+```
 
+## Deployment Commands
+
+> **Note:** Watchtower automatically updates the API container. Manual updates are optional.
+
+```bash
 # View logs
 docker-compose logs -f
 docker-compose logs -f api
+docker-compose logs -f watchtower
 
 # Restart a service
 docker-compose restart api
+
+# Manual update (if Watchtower is disabled)
+docker-compose pull api
+docker-compose up -d api
 
 # Stop all services
 docker-compose down
@@ -119,10 +156,23 @@ docker-compose down -v
 
 ## Updating the Application
 
+### Automatic Updates (Recommended)
+
+Watchtower handles this automatically:
+1. Push code to GitHub
+2. CI/CD builds and pushes Docker image
+3. Watchtower detects new image within 5 minutes
+4. Container updates automatically
+5. Slack notification confirms deployment
+
+### Manual Updates
+
+If you need to update manually or pull deployment configuration changes:
+
 ```bash
 cd /opt/app
 
-# Pull latest code
+# Pull latest deployment configuration
 git pull
 
 # Pull latest Docker images
@@ -218,6 +268,27 @@ df -h
 du -sh /var/lib/docker/containers/*/*-json.log
 ```
 
+### Watchtower Not Updating
+
+```bash
+# Check Watchtower logs
+docker-compose logs watchtower
+
+# Verify API container has the label
+docker inspect api | grep watchtower
+
+# Manually trigger update
+docker-compose restart watchtower
+
+# Check if new image is available
+docker pull ghcr.io/learnplaybond/api.learnplaybond:latest
+
+# Common issues:
+# - GitHub Container Registry authentication
+# - Container not labeled for updates
+# - Slack webhook URL not configured
+```
+
 ## Security Checklist
 
 - [ ] `.env` file has 600 permissions
@@ -228,6 +299,8 @@ du -sh /var/lib/docker/containers/*/*-json.log
 - [ ] fail2ban installed and running
 - [ ] Automatic security updates enabled
 - [ ] Backups tested and verified
+- [ ] Slack webhook configured for Watchtower notifications
+- [ ] Test deployment completed successfully
 
 ## Monitoring
 
