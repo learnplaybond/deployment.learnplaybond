@@ -97,6 +97,106 @@ Create these records in Cloudflare:
 | A | api | your-server-ip | ✅ Orange cloud |
 | A | secrets | your-server-ip | ✅ Orange cloud |
 
+## Secrets Management with Infisical
+
+The API integrates with Infisical for secure secrets management in production.
+
+### How It Works
+
+1. **Development**: API reads secrets from `.env` file
+2. **Production**: API fetches secrets from Infisical at startup using the Infisical SDK
+
+### Setup Infisical
+
+After deploying the infrastructure, configure Infisical:
+
+1. **Access Infisical UI**
+   ```bash
+   # Open in browser
+   https://secrets.learnplaybond.com
+
+   # Or use server IP temporarily
+   http://your-server-ip:8080
+   ```
+
+2. **Create Admin Account**
+   - First user becomes the admin
+   - Use a strong password
+
+3. **Create Project**
+   - Name: `LearnPlayBond Production`
+   - Environment: `production`
+
+4. **Add Application Secrets**
+
+   Add these secrets in Infisical UI (Project Settings → Secrets):
+
+   ```
+   FIREBASE_PROJECT_ID=your-firebase-project-id
+   FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project-id.iam.gserviceaccount.com
+   FIREBASE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n
+   RAZORPAY_KEY_ID=rzp_live_xxxxx
+   RAZORPAY_SECRET=your_razorpay_secret
+   OPENAI_API_KEY=sk-proj-xxxxx
+   EMAIL_USER=your_email@gmail.com
+   EMAIL_PASS=your_app_specific_password
+   SENTRY_DSN=https://xxxxx@oxxxxx.ingest.sentry.io/xxxxx
+   ```
+
+5. **Create Service Token**
+
+   ```bash
+   # In Infisical UI: Project Settings → Service Tokens
+   # 1. Click "Create Service Token"
+   # 2. Name: "API Production"
+   # 3. Environment: "production"
+   # 4. Permissions: Read
+   # 5. Copy the token (starts with "st.prod.xxxxx")
+   ```
+
+6. **Update .env File**
+
+   Add the Infisical credentials to `/opt/app/.env`:
+
+   ```bash
+   INFISICAL_TOKEN=st.prod.xxxxx
+   INFISICAL_PROJECT_ID=xxxxx
+   ```
+
+7. **Restart API**
+
+   ```bash
+   docker-compose restart api
+
+   # Verify API loaded secrets from Infisical
+   docker-compose logs api | grep -i infisical
+   # Should see: "Infisical: Secrets loaded successfully"
+   ```
+
+### Rotating Secrets
+
+To rotate a secret:
+
+1. Update the secret value in Infisical UI
+2. Restart the API container: `docker-compose restart api`
+3. The API will fetch the updated secrets on startup
+
+### Troubleshooting Infisical
+
+```bash
+# Check Infisical container status
+docker-compose ps infisical
+
+# View Infisical logs
+docker-compose logs infisical
+
+# Test Infisical connection
+docker exec infisical wget -qO- http://localhost:8080/api/status
+
+# Verify API has Infisical token
+docker-compose exec api printenv | grep INFISICAL
+```
+
 ## Automated Deployments
 
 Watchtower automatically updates the API container when new images are pushed to GitHub Container Registry.
