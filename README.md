@@ -99,12 +99,13 @@ Create these records in Cloudflare:
 
 ## Secrets Management with Infisical
 
-The API integrates with Infisical for secure secrets management in production.
+The API integrates with Infisical for secure secrets management across all environments.
 
 ### How It Works
 
-1. **Development**: API reads secrets from `.env` file
-2. **Production**: API fetches secrets from Infisical at startup using the Infisical SDK
+- **All Environments**: API fetches secrets from Infisical at startup using the Infisical SDK
+- **Graceful Fallback**: If `INFISICAL_TOKEN` or `INFISICAL_PROJECT_ID` is not configured, the plugin skips initialization
+- **Centralized Management**: All application secrets (Firebase, Razorpay, OpenAI, etc.) are managed in Infisical UI
 
 ### Setup Infisical
 
