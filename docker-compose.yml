@@ -9,7 +9,7 @@ services:
     container_name: traefik
     restart: unless-stopped
     command:
-      - "--api.dashboard=false"
+      - "--api.dashboard=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
@@ -30,6 +30,16 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    labels:
+      - "traefik.enable=true"
+      # Dashboard
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik.service=api@internal"
+      # Basic Auth Middleware
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}"
+      - "traefik.http.routers.traefik.middlewares=traefik-auth"
     deploy:
       resources:
         limits:
