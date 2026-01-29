@@ -52,10 +52,11 @@ services:
       - NODE_ENV=production
       - MONGO_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DATABASE}?authSource=admin
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
-      # Secrets Management (Infisical)
+      # Secrets Management (Infisical - Machine Identity / Universal Auth)
       # In production, application secrets come from Infisical
-      # Set INFISICAL_TOKEN after creating service token in Infisical UI
-      - INFISICAL_TOKEN=${INFISICAL_TOKEN:-}
+      # Set INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET after creating Machine Identity in Infisical UI
+      - INFISICAL_CLIENT_ID=${INFISICAL_CLIENT_ID:-}
+      - INFISICAL_CLIENT_SECRET=${INFISICAL_CLIENT_SECRET:-}
       - INFISICAL_PROJECT_ID=${INFISICAL_PROJECT_ID:-}
       # Application Secrets (optional - fetched from Infisical in production)
       # Only needed for local development or when Infisical is not configured
